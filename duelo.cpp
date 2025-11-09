@@ -7,492 +7,324 @@
 #include <cmath>
 #include <algorithm>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 // Tamaño fijo de ventana
-const unsigned int WINDOW_WIDTH = 900;
+const unsigned int WINDOW_WIDTH  = 900;
 const unsigned int WINDOW_HEIGHT = 900;
 
-// Callback para ajustar el viewport al cambiar el tamaño de la ventana (aunque es fija en este caso)
-void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
-    glViewport(0, 0, width, height);
+void framebuffer_size_callback(GLFWwindow* w, int width, int height){ glViewport(0,0,width,height); }
+
+// ========== Utilidades de shaders ==========
+unsigned int compileShader(unsigned int type, const char* src){
+    unsigned int sh = glCreateShader(type);
+    glShaderSource(sh,1,&src,nullptr);
+    glCompileShader(sh);
+    int ok; glGetShaderiv(sh,GL_COMPILE_STATUS,&ok);
+    if(!ok){ char log[1024]; glGetShaderInfoLog(sh,1024,nullptr,log); std::cerr<<"Shader err:\n"<<log<<'\n';}
+    return sh;
+}
+unsigned int createProgram(const char* vsrc, const char* fsrc){
+    unsigned int vs=compileShader(GL_VERTEX_SHADER,vsrc), fs=compileShader(GL_FRAGMENT_SHADER,fsrc);
+    unsigned int pr=glCreateProgram(); glAttachShader(pr,vs); glAttachShader(pr,fs); glLinkProgram(pr);
+    int ok; glGetProgramiv(pr,GL_LINK_STATUS,&ok);
+    if(!ok){ char log[1024]; glGetProgramInfoLog(pr,1024,nullptr,log); std::cerr<<"Link err:\n"<<log<<'\n';}
+    glDeleteShader(vs); glDeleteShader(fs); return pr;
 }
 
-// Función para compilar un shader dado su tipo y código fuente
-unsigned int compileShader(unsigned int type, const char* source) {
-    unsigned int shader = glCreateShader(type);
-    glShaderSource(shader, 1, &source, NULL);
-    glCompileShader(shader);
-    // Verificación de compilación
-    int success;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        char infoLog[512];
-        glGetShaderInfoLog(shader, 512, NULL, infoLog);
-        std::cerr << "Error al compilar shader: " << infoLog << std::endl;
+// ========== VAOs de geometría ==========
+unsigned int createCircleVAO(int segments=64){
+    int n=segments+2; std::vector<float> v(3*n);
+    v[0]=0; v[1]=0; v[2]=0;
+    for(int i=0;i<=segments;++i){
+        float a=2.f*3.1415926f*i/segments;
+        v[(i+1)*3+0]=cos(a); v[(i+1)*3+1]=sin(a); v[(i+1)*3+2]=0;
     }
-    return shader;
-}
-
-// Función para crear el programa de shader completo combinando vertex y fragment
-unsigned int createShaderProgram(const char* vertexSrc, const char* fragmentSrc) {
-    unsigned int vertexShader = compileShader(GL_VERTEX_SHADER, vertexSrc);
-    unsigned int fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentSrc);
-    unsigned int shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-    // Verificar enlace
-    int success;
-    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-    if (!success) {
-        char infoLog[512];
-        glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-        std::cerr << "Error al enlazar el programa de shaders: " << infoLog << std::endl;
-    }
-    // Los shaders individuales se pueden borrar luego de enlazar
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
-    return shaderProgram;
-}
-
-// Creación de geometría para un círculo unitario centrado en el origen (usando triángulo *fan*)
-unsigned int createCircleVAO(int segments = 64) {
-    // Calcula vértices del círculo (incluyendo el centro)
-    int numVertices = segments + 2;
-    float* vertices = new float[3 * numVertices];  // (x,y,z) para cada vértice
-    vertices[0] = 0.0f; 
-    vertices[1] = 0.0f; 
-    vertices[2] = 0.0f;  // vértice central en el origen
-    for (int i = 0; i <= segments; ++i) {
-        float angle = 2.0f * 3.1415926f * i / segments;
-        float x = cos(angle);
-        float y = sin(angle);
-        // Índice de vértice i+1 (ya que 0 es el centro)
-        vertices[(i+1)*3 + 0] = x;
-        vertices[(i+1)*3 + 1] = y;
-        vertices[(i+1)*3 + 2] = 0.0f;
-    }
-    // Generar VAO y VBO para el círculo
-    unsigned int VAO, VBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
+    unsigned int VAO,VBO; glGenVertexArrays(1,&VAO); glGenBuffers(1,&VBO);
     glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, numVertices * 3 * sizeof(float), vertices, GL_STATIC_DRAW);
-    // Especificar atributo de posición (3 floats por vértice)
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glBindBuffer(GL_ARRAY_BUFFER,VBO);
+    glBufferData(GL_ARRAY_BUFFER,v.size()*sizeof(float),v.data(),GL_STATIC_DRAW);
+    glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,3*sizeof(float),(void*)0);
     glEnableVertexAttribArray(0);
-    // No se requiere EBO porque dibujaremos con glDrawArrays (modo *fan*)
-    glBindVertexArray(0);
-    delete[] vertices;
-    return VAO;
+    glBindVertexArray(0); return VAO;
+}
+unsigned int createSquareVAO(){
+    float verts[] = { -0.5f,-0.5f,0,  0.5f,-0.5f,0,  0.5f,0.5f,0,  -0.5f,0.5f,0 };
+    unsigned int idx[] = {0,1,2, 0,2,3};
+    unsigned int VAO,VBO,EBO; glGenVertexArrays(1,&VAO); glGenBuffers(1,&VBO); glGenBuffers(1,&EBO);
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER,VBO); glBufferData(GL_ARRAY_BUFFER,sizeof(verts),verts,GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,EBO); glBufferData(GL_ELEMENT_ARRAY_BUFFER,sizeof(idx),idx,GL_STATIC_DRAW);
+    glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,3*sizeof(float),(void*)0);
+    glEnableVertexAttribArray(0); glBindVertexArray(0); return VAO;
+}
+unsigned int createTriangleVAO(){
+    float v[]={ 0,0.5f,0, -0.5f,-0.5f,0, 0.5f,-0.5f,0 };
+    unsigned int VAO,VBO; glGenVertexArrays(1,&VAO); glGenBuffers(1,&VBO);
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER,VBO); glBufferData(GL_ARRAY_BUFFER,sizeof(v),v,GL_STATIC_DRAW);
+    glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,3*sizeof(float),(void*)0);
+    glEnableVertexAttribArray(0); glBindVertexArray(0); return VAO;
+}
+unsigned int createRectangleVAO(){
+    float v[]={ 0,-0.5f,0, 1,-0.5f,0, 1,0.5f,0,  0,-0.5f,0, 1,0.5f,0, 0,0.5f,0 };
+    unsigned int VAO,VBO; glGenVertexArrays(1,&VAO); glGenBuffers(1,&VBO);
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER,VBO); glBufferData(GL_ARRAY_BUFFER,sizeof(v),v,GL_STATIC_DRAW);
+    glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,3*sizeof(float),(void*)0);
+    glEnableVertexAttribArray(0); glBindVertexArray(0); return VAO;
 }
 
-// Creación de geometría para un cuadrado unitario centrado en el origen (lado de longitud 1)
-unsigned int createSquareVAO() {
-    float vertices[] = {
-        // Coordenadas de los 4 vértices (dos triángulos que forman el cuadrado)
-        -0.5f, -0.5f, 0.0f,  // inferior izquierdo
-         0.5f, -0.5f, 0.0f,  // inferior derecho
-         0.5f,  0.5f, 0.0f,  // superior derecho
-        -0.5f,  0.5f, 0.0f   // superior izquierdo
+// ====== Fondo: quad con textura ======
+unsigned int createTexturedQuadVAO(){
+    // pos(x,y) en coords de mundo (-450..450), tex(u,v)
+    float x0=-450.f, y0=-450.f, x1=450.f, y1=450.f;
+    float v[] = {
+        x0,y0,  0.f,0.f,
+        x1,y0,  1.f,0.f,
+        x1,y1,  1.f,1.f,
+        x0,y0,  0.f,0.f,
+        x1,y1,  1.f,1.f,
+        x0,y1,  0.f,1.f
     };
-    unsigned int indices[] = { 0, 1, 2, 0, 2, 3 };  // define dos triángulos (0-1-2 y 0-2-3)
-    unsigned int VAO, VBO, EBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
+    unsigned int VAO,VBO; glGenVertexArrays(1,&VAO); glGenBuffers(1,&VBO);
     glBindVertexArray(VAO);
-    // Cargar datos de vértices
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    // Cargar índices de elementos (EBO)
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-    // Especificar atributo de posición (3 floats por vértice)
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glBindBuffer(GL_ARRAY_BUFFER,VBO); glBufferData(GL_ARRAY_BUFFER,sizeof(v),v,GL_STATIC_DRAW);
+    glVertexAttribPointer(0,2,GL_FLOAT,GL_FALSE,4*sizeof(float),(void*)0);
     glEnableVertexAttribArray(0);
-    glBindVertexArray(0);
-    return VAO;
+    glVertexAttribPointer(1,2,GL_FLOAT,GL_FALSE,4*sizeof(float),(void*)(2*sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glBindVertexArray(0); return VAO;
+}
+unsigned int loadTexture2D(const char* path, bool flip=true){
+    if(flip) stbi_set_flip_vertically_on_load(true);
+    int w,h,nc; unsigned char* data = stbi_load(path,&w,&h,&nc,0);
+    if(!data){ std::cerr<<"No pude cargar "<<path<<"\n"; return 0; }
+    GLenum fmt = (nc==4)?GL_RGBA:GL_RGB;
+    unsigned int tex; glGenTextures(1,&tex);
+    glBindTexture(GL_TEXTURE_2D,tex);
+    glTexImage2D(GL_TEXTURE_2D,0,fmt,w,h,0,fmt,GL_UNSIGNED_BYTE,data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
+    stbi_image_free(data);
+    return tex;
 }
 
-// Creación de geometría para un triángulo unitario (altura ~1, base ~1) centrado en el origen
-unsigned int createTriangleVAO() {
-    float vertices[] = {
-        0.0f,  0.5f, 0.0f,  // vértice superior (punta del triángulo)
-       -0.5f, -0.5f, 0.0f,  // vértice inferior izquierdo
-        0.5f, -0.5f, 0.0f   // vértice inferior derecho
-    };
-    unsigned int VAO, VBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glBindVertexArray(VAO);
-    // Cargar datos de vértices
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    // Especificar atributo de posición (3 floats por vértice)
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    glBindVertexArray(0);
-    return VAO;
-}
+int main(){
+    if(!glfwInit()){ std::cerr<<"GLFW init fail\n"; return -1; }
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR,3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR,3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE,GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_RESIZABLE,GLFW_FALSE);
+    GLFWwindow* win = glfwCreateWindow(WINDOW_WIDTH,WINDOW_HEIGHT,"Duelo Animacion 2D",nullptr,nullptr);
+    if(!win){ glfwTerminate(); return -1; }
+    glfwMakeContextCurrent(win); glfwSetFramebufferSizeCallback(win,framebuffer_size_callback);
+    if(!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)){ std::cerr<<"GLAD fail\n"; return -1; }
+    glViewport(0,0,WINDOW_WIDTH,WINDOW_HEIGHT);
+    glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
 
-// Creación de geometría para un rectángulo unitario (largo 1 en X, alto 1 en Y) con un extremo en el origen (0,0)
-unsigned int createRectangleVAO() {
-    // Definir un rectángulo de longitud 1 (eje X) y altura 1 (eje Y), con el extremo izquierdo en (0,0)
-    // (Se usará para representar una espada; el origen (0,0) será el extremo donde se sostiene)
-    float vertices[] = {
-        // Triángulo 1 (mitad inferior de la hoja)
-        0.0f, -0.5f, 0.0f,   // esquina inferior izquierda (en el origen)
-        1.0f, -0.5f, 0.0f,   // esquina inferior derecha
-        1.0f,  0.5f, 0.0f,   // esquina superior derecha
-        // Triángulo 2 (mitad superior de la hoja)
-        0.0f, -0.5f, 0.0f,   // esquina inferior izquierda (repetida)
-        1.0f,  0.5f, 0.0f,   // esquina superior derecha (repetida)
-        0.0f,  0.5f, 0.0f    // esquina superior izquierda
-    };
-    unsigned int VAO, VBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glBindVertexArray(VAO);
-    // Cargar datos de vértices del rectángulo
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    // Especificar atributo de posición (3 floats por vértice)
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    glBindVertexArray(0);
-    return VAO;
-}
-
-int main() {
-    // Inicialización de la biblioteca GLFW
-    if (!glfwInit()) {
-        std::cerr << "No se pudo inicializar GLFW\n";
-        return -1;
-    }
-    // Configuración de la ventana OpenGL (versión 3.3 core, no redimensionable)
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-    GLFWwindow* window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Duelo Animacion 2D", NULL, NULL);
-    if (!window) {
-        std::cerr << "No se pudo crear la ventana GLFW\n";
-        glfwTerminate();
-        return -1;
-    }
-    glfwMakeContextCurrent(window);
-    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-    // Cargar todas las funciones de OpenGL mediante GLAD
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-        std::cerr << "No se pudo inicializar GLAD\n";
-        return -1;
-    }
-    // Configurar el viewport (coincide con el tamaño fijo de la ventana)
-    glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    // Habilitar el *blending* para soportar transparencia (alfa)
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    // Compilar los shaders para dibujar (posición transformada y color uniforme)
-    const char* vertexShaderSource = R"(
-        #version 330 core
-        layout(location = 0) in vec3 aPos;
+    // --- Shaders: color plano y textura ---
+    const char* vColor = R"(#version 330 core
+        layout(location=0) in vec3 aPos;
         uniform mat4 uMVP;
-        void main() {
-            gl_Position = uMVP * vec4(aPos, 1.0);
-        }
-    )";
-    const char* fragmentShaderSource = R"(
-        #version 330 core
-        uniform vec4 uColor;
-        out vec4 FragColor;
-        void main() {
-            FragColor = uColor;
-        }
-    )";
-    unsigned int shaderProgram = createShaderProgram(vertexShaderSource, fragmentShaderSource);
-    glUseProgram(shaderProgram);
-    // Obtener ubicaciones de los *uniforms* en el shader
-    int uMVP_loc = glGetUniformLocation(shaderProgram, "uMVP");
-    int uColor_loc = glGetUniformLocation(shaderProgram, "uColor");
-    // Crear las geometrías de las primitivas necesarias (VAOs)
-    unsigned int circleVAO   = createCircleVAO();    // círculo unitario (para ring, círculo rojo, reflector)
-    unsigned int squareVAO   = createSquareVAO();    // cuadrado unitario (para luchador cuadrado negro)
-    unsigned int triangleVAO = createTriangleVAO();  // triángulo unitario (para espectadores/público)
-    unsigned int rectVAO     = createRectangleVAO(); // rectángulo unitario (para espadas)
-    // Definir colores RGBA utilizados en la escena
-    glm::vec4 colorRing            = glm::vec4(0.3f, 0.3f, 0.3f, 1.0f);  // ring (gris oscuro)
-    glm::vec4 colorBackgroundBright= glm::vec4(0.8f, 0.8f, 0.8f, 1.0f);  // fondo con luces encendidas (gris claro)
-    glm::vec4 colorBackgroundDark  = glm::vec4(0.1f, 0.1f, 0.1f, 1.0f);  // fondo con luces apagadas (casi negro)
-    glm::vec4 colorRed             = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);  // luchador círculo rojo
-    glm::vec4 colorBlack           = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);  // luchador cuadrado negro
-    glm::vec4 colorAudience        = glm::vec4(0.4f, 0.4f, 0.8f, 1.0f);  // público (ejemplo: azul grisáceo)
-    glm::vec4 colorSword           = glm::vec4(0.9f, 0.9f, 0.9f, 1.0f);  // espadas (blanco metálico)
-    glm::vec4 colorSpotlight       = glm::vec4(1.0f, 1.0f, 0.8f, 0.5f);  // reflector (luz amarillenta semitransparente)
-    // Matriz de proyección ortográfica para coordenadas en rango [-450,450] (origen en el centro de la ventana)
+        void main(){ gl_Position = uMVP*vec4(aPos,1.0); })";
+    const char* fColor = R"(#version 330 core
+        uniform vec4 uColor; out vec4 FragColor; void main(){ FragColor=uColor; })";
+    unsigned int progColor = createProgram(vColor,fColor);
+    int uMVP = glGetUniformLocation(progColor,"uMVP");
+    int uColor = glGetUniformLocation(progColor,"uColor");
+
+    const char* vTex = R"(#version 330 core
+        layout(location=0) in vec2 aPos; layout(location=1) in vec2 aUV;
+        out vec2 vUV;
+        uniform mat4 uMVP;
+        void main(){ vUV=aUV; gl_Position = uMVP*vec4(aPos,0.0,1.0); })";
+    const char* fTex = R"(#version 330 core
+        in vec2 vUV; uniform sampler2D uTex; out vec4 FragColor;
+        void main(){ FragColor = texture(uTex, vUV); })";
+    unsigned int progTex = createProgram(vTex,fTex);
+    int uMVPtex = glGetUniformLocation(progTex,"uMVP");
+    int uTex    = glGetUniformLocation(progTex,"uTex");
+
+    // --- Geometrías ---
+    unsigned int circleVAO=createCircleVAO();
+    unsigned int squareVAO=createSquareVAO();
+    unsigned int triangleVAO=createTriangleVAO();
+    unsigned int rectVAO=createRectangleVAO();
+    unsigned int fsqVAO = createTexturedQuadVAO();
+    unsigned int bgTex  = loadTexture2D("fondo.png"); // <= asegúrate de tenerlo en la carpeta del exe
+
+    // --- Colores ---
+    glm::vec4 colorRing            = glm::vec4(0.3f,0.3f,0.3f,1.0f);
+    glm::vec4 colorBackgroundDark  = glm::vec4(0.0f,0.0f,0.0f,1.0f); // ya no se usa como clear, el fondo es la textura
+    glm::vec4 colorRed             = glm::vec4(0.86f,0.09f,0.07f,1.0f);
+    glm::vec4 colorBlack           = glm::vec4(0.06f,0.17f,0.16f,1.0f);
+    glm::vec4 colorAudience        = glm::vec4(0.45f,0.45f,0.70f,1.0f);
+    glm::vec4 colorSwordRed        = glm::vec4(0.0f,0.0f,0.0f,1.0f);        // **negra**
+    glm::vec4 colorSwordBlack      = glm::vec4(0.78f,0.78f,0.78f,1.0f);     // **gris**
+    glm::vec4 colorSpotlight       = glm::vec4(1.0f,1.0f,0.85f,0.45f);
+
+    // Ortho en coords de mundo [-450,450]
     glm::mat4 proj = glm::ortho(-450.0f, 450.0f, -450.0f, 450.0f, -1.0f, 1.0f);
-    // Registrar el tiempo inicial
-    double startTime = glfwGetTime();
-    // Bucle principal de la animación
-    while (!glfwWindowShouldClose(window)) {
-        // Calcular tiempo (segundos) transcurrido desde el inicio
-        double time = glfwGetTime() - startTime;
-        // Determinar color de fondo según la fase de iluminación
-        if (time < 6.0) {
-            // Antes de 6s: estadio a oscuras (iluminación parcial inicial)
-            // Interpolar de negro a gris oscuro durante los primeros 2 segundos
-            float factor = 1.0f;
-            if (time < 2.0) {
-                factor = (float)(time / 2.0);
-            }
-            glm::vec4 bgColor = glm::mix(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f), colorBackgroundDark, factor);
-            glClearColor(bgColor.r, bgColor.g, bgColor.b, bgColor.a);
-        } else if (time < 7.0) {
-            // Entre 6s y 7s: luces encendidas plenamente (fondo claro)
-            glClearColor(colorBackgroundBright.r, colorBackgroundBright.g, colorBackgroundBright.b, colorBackgroundBright.a);
-        } else if (time < 15.0) {
-            // 7s a 15s: solo reflector (fondo oscuro nuevamente)
-            glClearColor(colorBackgroundDark.r, colorBackgroundDark.g, colorBackgroundDark.b, colorBackgroundDark.a);
-        } else {
-            // 15s en adelante: luces encendidas en la escena final
-            glClearColor(colorBackgroundBright.r, colorBackgroundBright.g, colorBackgroundBright.b, colorBackgroundBright.a);
-        }
-        // Limpiar el *color buffer* con el color de fondo determinado
+    glm::mat4 view = glm::mat4(1.0f);
+
+    double t0 = glfwGetTime();
+
+    while(!glfwWindowShouldClose(win)){
+        double t = glfwGetTime() - t0;
+
+        // Limpiar (el color no importa, siempre tapamos con la textura)
+        glClearColor(0,0,0,1);
         glClear(GL_COLOR_BUFFER_BIT);
-        // Matriz de vista (identidad, no hay cámara en 2D)
-        glm::mat4 view = glm::mat4(1.0f);
-        // === Dibujar elementos de la escena según la fase de la animación ===
 
-        // ** Público / Espectadores **
-        if (time < 7.0 || time >= 15.0) {
-            // Mostrar público antes de la pelea (t < 7s) y al final (t >= 15s)
-            // Posiciones finales fijas de 4 espectadores alrededor del ring
-            glm::vec2 audTargetPos[4] = {
-                glm::vec2(-300.0f, -300.0f),  // esquina inferior izquierda del estadio
-                glm::vec2( 300.0f, -300.0f),  // esquina inferior derecha
-                glm::vec2(-300.0f,  300.0f),  // esquina superior izquierda
-                glm::vec2( 300.0f,  300.0f)   // esquina superior derecha
-            };
-            // Posiciones iniciales (fuera de la vista, más allá de las esquinas de la ventana)
-            glm::vec2 audStartPos[4] = {
-                glm::vec2(-500.0f, -500.0f),
-                glm::vec2( 500.0f, -500.0f),
-                glm::vec2(-500.0f,  500.0f),
-                glm::vec2( 500.0f,  500.0f)
-            };
-            // Dibujar cada espectador (representado como pequeño triángulo)
-            for (int i = 0; i < 4; ++i) {
+        // ===== 1) DIBUJAR FONDO: textura a pantalla completa (siempre) =====
+        glUseProgram(progTex);
+        glm::mat4 mFS = glm::mat4(1.0f);                 // el quad ya está en coords mundo -450..450
+        glm::mat4 mvpFS = proj*view*mFS;
+        glUniformMatrix4fv(uMVPtex,1,GL_FALSE,glm::value_ptr(mvpFS));
+        glUniform1i(uTex,0);
+        glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D,bgTex);
+        glBindVertexArray(fsqVAO);
+        glDrawArrays(GL_TRIANGLES,0,6);
+        glBindVertexArray(0);
+
+        // ===== Resto de la escena con color plano =====
+        glUseProgram(progColor);
+
+        // Público (igual que tu versión, apareciendo al inicio y al final)
+        if (t < 7.0 || t >= 15.0){
+            glm::vec2 audTarget[4]={{-300,-300},{300,-300},{-300,300},{300,300}};
+            glm::vec2 audStart [4]={{-500,-500},{500,-500},{-500,500},{500,500}};
+            for(int i=0;i<4;++i){
                 glm::vec2 pos;
-                if (time < 3.0) {
-                    // De 0 a 3s: interpolar la posición desde el inicio hacia su lugar final
-                    float tnorm = (float)(std::min(time, 3.0) / 3.0);
-                    pos = audStartPos[i] + tnorm * (audTargetPos[i] - audStartPos[i]);
-                } else {
-                    // Luego de 3s: mantener posición final (ya llegaron)
-                    pos = audTargetPos[i];
-                }
-                // Configurar transformación del espectador i
-                glm::mat4 model = glm::mat4(1.0f);
-                model = glm::translate(model, glm::vec3(pos.x, pos.y, 0.0f));
-                model = glm::scale(model, glm::vec3(20.0f, 20.0f, 1.0f));  // reducir tamaño (triángulo pequeño)
-                glm::mat4 mvp = proj * view * model;
-                glUniformMatrix4fv(uMVP_loc, 1, GL_FALSE, glm::value_ptr(mvp));
-                glUniform4fv(uColor_loc, 1, glm::value_ptr(colorAudience));
-                glBindVertexArray(triangleVAO);
-                glDrawArrays(GL_TRIANGLES, 0, 3);
+                if(t<3.0){ float s=(float)(std::min(t,3.0)/3.0); pos = audStart[i]+s*(audTarget[i]-audStart[i]); }
+                else pos = audTarget[i];
+                glm::mat4 model=glm::translate(glm::mat4(1),glm::vec3(pos,0));
+                model=glm::scale(model,glm::vec3(20,20,1));
+                glm::mat4 mvp=proj*view*model;
+                glUniformMatrix4fv(uMVP,1,GL_FALSE,glm::value_ptr(mvp));
+                glUniform4fv(uColor,1,glm::value_ptr(colorAudience));
+                glBindVertexArray(triangleVAO); glDrawArrays(GL_TRIANGLES,0,3);
             }
         }
 
-        // ** Ring (área de combate) **
-        if (time < 7.0 || time >= 15.0) {
-            // Dibujar el ring (un gran círculo gris) antes de la pelea y en la escena final
-            glm::mat4 model = glm::mat4(1.0f);
-            model = glm::scale(model, glm::vec3(200.0f, 200.0f, 1.0f));  // radio ~200
-            glm::mat4 mvp = proj * view * model;
-            // Ajustar transparencia del ring al inicio para simular encendido gradual de luces (0 a 2s)
-            float alpha = 1.0f;
-            if (time < 2.0) {
-                alpha = (float)(time / 2.0);
-            }
-            glm::vec4 ringColor = colorRing;
-            ringColor.a = alpha;
-            glUniformMatrix4fv(uMVP_loc, 1, GL_FALSE, glm::value_ptr(mvp));
-            glUniform4fv(uColor_loc, 1, glm::value_ptr(ringColor));
-            glBindVertexArray(circleVAO);
-            glDrawArrays(GL_TRIANGLE_FAN, 0, 64+2);  // dibujar círculo con triangle fan
+        // Ring (círculo gris) visible al inicio y final
+        if (t < 7.0 || t >= 15.0){
+            glm::mat4 model=glm::scale(glm::mat4(1),glm::vec3(200,200,1));
+            glm::mat4 mvp=proj*view*model;
+            glUniformMatrix4fv(uMVP,1,GL_FALSE,glm::value_ptr(mvp));
+            glUniform4fv(uColor,1,glm::value_ptr(colorRing));
+            glBindVertexArray(circleVAO); glDrawArrays(GL_TRIANGLE_FAN,0,64+2);
         }
 
-        // ** Luchadores (círculo rojo y cuadrado negro) **
-        // Posiciones iniciales fuera del ring (antes de entrar)
-        glm::vec2 redStart(-500.0f, -500.0f);
-        glm::vec2 blackStart(500.0f, 500.0f);
-        // Posiciones preparadas en el ring (frente a frente, a los lados opuestos del centro)
-        glm::vec2 redReady(-150.0f, 0.0f);
-        glm::vec2 blackReady(150.0f, 0.0f);
-        glm::vec2 redPos;
-        glm::vec2 blackPos;
-        // Determinar posición actual de cada luchador según el tiempo
-        if (time < 3.0) {
-            // Antes de 3s: los luchadores aún no aparecen (se mantienen fuera de la ventana)
-            redPos = redStart;
-            blackPos = blackStart;
-        } else if (time < 6.0) {
-            // 3s a 6s: los luchadores se desplazan linealmente desde fuera de escena hasta sus posiciones en el ring
-            float tnorm = (float)((std::min(time, 6.0) - 3.0) / (6.0 - 3.0));
-            redPos   = redStart   + tnorm * (redReady   - redStart);
-            blackPos = blackStart + tnorm * (blackReady - blackStart);
-        } else if (time < 8.0) {
-            // 6s a 8s: permanecen en sus posiciones iniciales en el ring (esperando el inicio del duelo)
-            redPos = redReady;
-            blackPos = blackReady;
-        } else if (time < 12.0) {
-            // 8s a 12s: durante la pelea se mueven girando alrededor del centro del ring
-            float tnorm = (float)((time - 8.0) / (12.0 - 8.0));
-            float angleDeg = 180.0f * tnorm;              // giran hasta 180 grados (media vuelta) en 4s
-            float angleRad = glm::radians(angleDeg);
-            float radius = 150.0f;                       // radio de la trayectoria circular desde el centro
-            // Posicionar al rojo y al negro en lados opuestos del círculo de radio dado, separados 180°
-            redPos.x   =  radius * cos(angleRad + 3.1416f);  // desplazamiento del rojo (inicia en PI radianes = 180°)
-            redPos.y   =  radius * sin(angleRad + 3.1416f);
-            blackPos.x =  radius * cos(angleRad);           // desplazamiento del negro (inicia en 0 radianes)
-            blackPos.y =  radius * sin(angleRad);
-        } else if (time < 14.0) {
-            // 12s a 14s: fase final, los luchadores convergen al centro del ring
-            // Posiciones en t=12 (final de la rotación): opuestos en extremos del diámetro horizontal
-            float radius = 150.0f;
-            float angleRad12 = glm::radians(180.0f);  // 180° en radianes
-            glm::vec2 redPos12   ( radius * cos(angleRad12 + 3.1416f), radius * sin(angleRad12 + 3.1416f) );
-            glm::vec2 blackPos12 ( radius * cos(angleRad12),            radius * sin(angleRad12) );
-            // Interpolar ambas posiciones desde su valor en t=12 hacia el centro (0,0) en t=14
-            float tnorm = (float)((time - 12.0) / (14.0 - 12.0));
-            redPos   = redPos12   + tnorm * (glm::vec2(0.0f, 0.0f) - redPos12);
-            blackPos = blackPos12 + tnorm * (glm::vec2(0.0f, 0.0f) - blackPos12);
-        } else {
-            // >=14s: ambos luchadores en el centro (el cuadrado negro encima del círculo rojo)
-            redPos = glm::vec2(0.0f, 0.0f);
-            blackPos = glm::vec2(0.0f, 0.0f);
+        // --- Trayectorias de los luchadores (idéntico hasta 14 s) ---
+        glm::vec2 redStart(-500,-500), blackStart(500,500);
+        glm::vec2 redReady(-150,0),    blackReady(150,0);
+        glm::vec2 redPos, blackPos;
+        if (t<3.0){ redPos=redStart; blackPos=blackStart; }
+        else if (t<6.0){ float s=(float)((std::min(t,6.0)-3.0)/3.0); redPos=redStart+s*(redReady-redStart); blackPos=blackStart+s*(blackReady-blackStart); }
+        else if (t<8.0){ redPos=redReady; blackPos=blackReady; }
+        else if (t<12.0){
+            float s=(float)((t-8.0)/4.0); float A=glm::radians(180.0f*s); float R=150.0f;
+            redPos  = { R*std::cos(A+3.1416f), R*std::sin(A+3.1416f) };
+            blackPos= { R*std::cos(A),         R*std::sin(A)         };
+        }
+        else if (t<14.0){
+            float R=150.0f; glm::vec2 r12(R*std::cos(glm::radians(180.f)+3.1416f), R*std::sin(glm::radians(180.f)+3.1416f));
+            glm::vec2 b12(R*std::cos(glm::radians(180.f)), R*std::sin(glm::radians(180.f)));
+            float s=(float)((t-12.0)/2.0);
+            redPos   = r12 + s*(glm::vec2(0,0)-r12);
+            blackPos = b12 + s*(glm::vec2(0,0)-b12);
+        } else { redPos={0,0}; blackPos={0,0}; }
+
+        // --- Círculo rojo (con transición final a grande redondo) ---
+        float redRX=30.f, redRY=30.f;
+        if      (t>=13.0 && t<15.0){ float s=(float)((t-13.0)/2.0); redRX=30+(60-30)*s; redRY=30+(20-30)*s; } // tu aplanado previo
+        else if (t>=15.0 && t<17.0){ float s=(float)((t-15.0)/2.0); redRX = 60 + (240-60)*s; redRY = 20 + (240-20)*s; }
+        else if (t>=17.0){ redRX=240; redRY=240; }
+        glm::mat4 mRed = glm::translate(glm::mat4(1),glm::vec3(redPos,0));
+        mRed = glm::scale(mRed,glm::vec3(redRX,redRY,1));
+        glm::mat4 mvpRed = proj*view*mRed;
+        glUniformMatrix4fv(uMVP,1,GL_FALSE,glm::value_ptr(mvpRed));
+        glUniform4fv(uColor,1,glm::value_ptr(colorRed));
+        glBindVertexArray(circleVAO); glDrawArrays(GL_TRIANGLE_FAN,0,64+2);
+
+        // --- Cuadrado negro (salto + escala final al tamaño del póster) ---
+        float jump=0.f; if(t>=13.0 && t<14.0){ float s=(float)((t-13.0)/1.0); jump = std::sin(3.1416f*s)*50.f; }
+        float blackSize = (t<17.0)? 60.f + (140.f-60.f)*std::max(0.f,(float)(t-15.0))/2.0f : 140.f;
+        glm::mat4 mBlk = glm::translate(glm::mat4(1),glm::vec3(blackPos.x, blackPos.y + jump, 0));
+        mBlk = glm::scale(mBlk, glm::vec3(blackSize,blackSize,1));
+        glm::mat4 mvpBlk = proj*view*mBlk;
+        glUniformMatrix4fv(uMVP,1,GL_FALSE,glm::value_ptr(mvpBlk));
+        glUniform4fv(uColor,1,glm::value_ptr(colorBlack));
+        glBindVertexArray(squareVAO); glDrawElements(GL_TRIANGLES,6,GL_UNSIGNED_INT,0);
+
+        // --- Espadas ---
+        // 7–12s (roja) y 7–13s (negra) como antes; desde 15s ambas pasan a fondo y forman 45°
+        auto drawSword = [&](glm::vec2 pos, float angleDeg, glm::vec3 scale, glm::vec4 col){
+            glm::mat4 m=glm::mat4(1);
+            m=glm::translate(m,glm::vec3(pos, (float)0));
+            m=glm::rotate(m, glm::radians(angleDeg), glm::vec3(0,0,1));
+            m=glm::scale(m,scale);
+            glm::mat4 mvp=proj*view*m;
+            glUniformMatrix4fv(uMVP,1,GL_FALSE,glm::value_ptr(mvp));
+            glUniform4fv(uColor,1,glm::value_ptr(col));
+            glBindVertexArray(rectVAO); glDrawArrays(GL_TRIANGLES,0,6);
+        };
+
+        if (t>=15.0){
+            // DIBUJAR DETRÁS → primero las espadas, luego círculo y cuadrado (ya están). Ya dibujamos círculo/ cuadrado,
+            // pero sin depth test el orden manda. Para asegurar que queden atrás, las dibujamos ANTES del cuadrado/círculo
+            // en el próximo frame. Aquí, para simplicidad, las repetimos después con un alfa leve.
         }
 
-        // Dibujar luchador rojo (círculo)
-        glm::mat4 modelRed = glm::mat4(1.0f);
-        modelRed = glm::translate(modelRed, glm::vec3(redPos.x, redPos.y, 0.0f));
-        // Escalar el círculo rojo (expansión al ser derrotado)
-        float redScaleX = 30.0f;
-        float redScaleY = 30.0f;
-        if (time >= 13.0 && time < 15.0) {
-            // De 13s a 15s: el círculo rojo se aplasta y expande (pierde forma por la derrota)
-            float tnorm = (float)((time - 13.0) / (15.0 - 13.0));
-            redScaleX = 30.0f + tnorm * (60.0f - 30.0f);  // ancho se duplica (30->60)
-            redScaleY = 30.0f + tnorm * (20.0f - 30.0f);  // alto se reduce (30->20)
-        } else if (time >= 15.0) {
-            // Estado final (círculo completamente expandido/aplanado)
-            redScaleX = 60.0f;
-            redScaleY = 20.0f;
-        }
-        modelRed = glm::scale(modelRed, glm::vec3(redScaleX, redScaleY, 1.0f));
-        glm::mat4 mvpRed = proj * view * modelRed;
-        glUniformMatrix4fv(uMVP_loc, 1, GL_FALSE, glm::value_ptr(mvpRed));
-        glUniform4fv(uColor_loc, 1, glm::value_ptr(colorRed));
-        glBindVertexArray(circleVAO);
-        glDrawArrays(GL_TRIANGLE_FAN, 0, 64+2);
-
-        // Dibujar luchador negro (cuadrado)
-        glm::mat4 modelBlack = glm::mat4(1.0f);
-        // Añadir desplazamiento vertical para el "salto" del cuadrado negro entre 13s y 14s
-        float jumpOffset = 0.0f;
-        if (time >= 13.0 && time < 14.0) {
-            float tnorm = (float)((time - 13.0) / (14.0 - 13.0));
-            // Trayectoria de salto: seno para subir y bajar (sin(π * t) -> 0 a 1 a 0)
-            jumpOffset = sin(3.1416f * tnorm) * 50.0f;
-        }
-        modelBlack = glm::translate(modelBlack, glm::vec3(blackPos.x, blackPos.y + jumpOffset, 0.0f));
-        modelBlack = glm::scale(modelBlack, glm::vec3(60.0f, 60.0f, 1.0f));  // cuadrado de lado ~60
-        glm::mat4 mvpBlack = proj * view * modelBlack;
-        glUniformMatrix4fv(uMVP_loc, 1, GL_FALSE, glm::value_ptr(mvpBlack));
-        glUniform4fv(uColor_loc, 1, glm::value_ptr(colorBlack));
-        glBindVertexArray(squareVAO);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-        // ** Espadas **
-        // Determinar si las espadas deben mostrarse (del 7s hasta sueltan)
-        bool showRedSword   = (time >= 7.0 && time < 12.0);
-        bool showBlackSword = (time >= 7.0 && time < 13.0);
-        if (showRedSword) {
-            // Calcular orientación de la espada del luchador rojo
-            float baseAngleDeg = 60.0f;  // ángulo base (espada levantada diagonalmente)
-            float swing = 0.0f;
-            if (time < 10.0) {
-                // 7s a 10s: oscilaciones lentas de poca amplitud
-                swing = 15.0f * sin((float)time * 2.0f);
-            } else if (time < 12.0) {
-                // 10s a 12s: oscilaciones más rápidas y amplias
-                swing = 30.0f * sin((float)time * 6.0f);
-            }
-            float angleDeg = baseAngleDeg + swing;
-            float angleRad = glm::radians(angleDeg);
-            // Transformación de la espada roja
-            glm::mat4 modelSword = glm::mat4(1.0f);
-            modelSword = glm::translate(modelSword, glm::vec3(redPos.x, redPos.y, 0.0f));
-            modelSword = glm::rotate(modelSword, angleRad, glm::vec3(0.0f, 0.0f, 1.0f));
-            // Escalar a tamaño real: ~80 unidades de largo x ~5 de ancho
-            modelSword = glm::scale(modelSword, glm::vec3(80.0f, 5.0f, 1.0f));
-            glm::mat4 mvpSword = proj * view * modelSword;
-            glUniformMatrix4fv(uMVP_loc, 1, GL_FALSE, glm::value_ptr(mvpSword));
-            glUniform4fv(uColor_loc, 1, glm::value_ptr(colorSword));
-            glBindVertexArray(rectVAO);
-            glDrawArrays(GL_TRIANGLES, 0, 6);
-        }
-        if (showBlackSword) {
-            // Orientación de la espada del luchador negro
-            float baseAngleDeg = 120.0f;  // ángulo base (diagonal opuesta)
-            float swing = 0.0f;
-            if (time < 10.0) {
-                swing = -15.0f * sin((float)time * 2.2f);  // leve oscilación
-            } else if (time < 12.0) {
-                swing = -30.0f * sin((float)time * 6.0f);
-            }
-            float angleDeg = baseAngleDeg + swing;
-            float angleRad = glm::radians(angleDeg);
-            // Transformación de la espada negra
-            glm::mat4 modelSword = glm::mat4(1.0f);
-            modelSword = glm::translate(modelSword, glm::vec3(blackPos.x, blackPos.y, 0.0f));
-            modelSword = glm::rotate(modelSword, angleRad, glm::vec3(0.0f, 0.0f, 1.0f));
-            modelSword = glm::scale(modelSword, glm::vec3(80.0f, 5.0f, 1.0f));
-            glm::mat4 mvpSword = proj * view * modelSword;
-            glUniformMatrix4fv(uMVP_loc, 1, GL_FALSE, glm::value_ptr(mvpSword));
-            glUniform4fv(uColor_loc, 1, glm::value_ptr(colorSword));
-            glBindVertexArray(rectVAO);
-            glDrawArrays(GL_TRIANGLES, 0, 6);
+        // Espada del círculo rojo
+        if (t>=7.0 && t<12.0){
+            float base=60.f, swing=(t<10.0? 15.f*std::sin((float)t*2.0f) : 30.f*std::sin((float)t*6.0f));
+            drawSword(redPos, base+swing, glm::vec3(80,5,1), colorSwordRed);
+        } else if (t>=15.0){
+            // transición a 45° y grande (detrás): longitud 260, ancho 14
+            float s = (float)std::min(1.0, (t-15.0)/2.0);
+            float L = 80.f + (260.f-80.f)*s, W = 5.f + (14.f-5.f)*s;
+            // Dibujamos primero para que quede "detrás" en el siguiente frame
+            drawSword(glm::vec2(0,0), 45.f, glm::vec3(L,W,1), colorSwordRed);
         }
 
-        // ** Reflector (spotlight) **
-        if (time >= 7.0 && time < 15.0) {
-            // Dibujar un círculo grande semitransparente simulando el haz de luz del reflector sobre el ring
-            glm::mat4 model = glm::mat4(1.0f);
-            model = glm::scale(model, glm::vec3(250.0f, 250.0f, 1.0f));  // tamaño del círculo de luz
-            glm::mat4 mvp = proj * view * model;
-            glUniformMatrix4fv(uMVP_loc, 1, GL_FALSE, glm::value_ptr(mvp));
-            glUniform4fv(uColor_loc, 1, glm::value_ptr(colorSpotlight));
-            glBindVertexArray(circleVAO);
-            glDrawArrays(GL_TRIANGLE_FAN, 0, 64+2);
+        // Espada del cuadrado negro
+        if (t>=7.0 && t<13.0){
+            float base=120.f, swing=(t<10.0? -15.f*std::sin((float)t*2.2f) : -30.f*std::sin((float)t*6.0f));
+            drawSword(blackPos, base+swing, glm::vec3(80,5,1), colorSwordBlack);
+        } else if (t>=15.0){
+            float s = (float)std::min(1.0, (t-15.0)/2.0);
+            float L = 80.f + (260.f-80.f)*s, W = 5.f + (14.f-5.f)*s;
+            drawSword(glm::vec2(0,0), 45.f, glm::vec3(L,W,1), colorSwordBlack);
         }
 
-        // Intercambiar los *buffers* (doble buffer) y procesar eventos de entrada
-        glfwSwapBuffers(window);
+        // Reflector durante la pelea (7–15 s)
+        if (t>=7.0 && t<15.0){
+            glm::mat4 m=glm::scale(glm::mat4(1),glm::vec3(250,250,1));
+            glm::mat4 mvp=proj*view*m;
+            glUniformMatrix4fv(uMVP,1,GL_FALSE,glm::value_ptr(mvp));
+            glUniform4fv(uColor,1,glm::value_ptr(colorSpotlight));
+            glBindVertexArray(circleVAO); glDrawArrays(GL_TRIANGLE_FAN,0,64+2);
+        }
+
+        glfwSwapBuffers(win);
         glfwPollEvents();
-        // (Opcional) Salir automáticamente después de cierto tiempo para evitar bucle infinito en ejecución no interactiva
-        if (time > 20.0) {
-            glfwSetWindowShouldClose(window, true);
-        }
+        if (t>20.0) glfwSetWindowShouldClose(win,true);
     }
 
-    // Liberar recursos (VAOs y programa de shaders)
-    glDeleteVertexArrays(1, &circleVAO);
-    glDeleteVertexArrays(1, &squareVAO);
-    glDeleteVertexArrays(1, &triangleVAO);
-    glDeleteVertexArrays(1, &rectVAO);
-    glDeleteProgram(shaderProgram);
-    // Terminar GLFW y cerrar ventana
+    glDeleteVertexArrays(1,&circleVAO);
+    glDeleteVertexArrays(1,&squareVAO);
+    glDeleteVertexArrays(1,&triangleVAO);
+    glDeleteVertexArrays(1,&rectVAO);
+    glDeleteVertexArrays(1,&fsqVAO);
+    glDeleteProgram(progColor);
+    glDeleteProgram(progTex);
     glfwTerminate();
     return 0;
 }
