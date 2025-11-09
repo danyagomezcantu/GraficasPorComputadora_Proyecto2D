@@ -7,6 +7,7 @@
 #include <cmath>
 #include <algorithm>
 
+// --- Carga de imágenes ---
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
@@ -159,7 +160,6 @@ int main(){
     unsigned int bgTex  = loadTexture2D("fondo.png"); // <= asegúrate de tenerlo en la carpeta del exe
 
     // --- Colores ---
-    glm::vec4 colorRing            = glm::vec4(0.3f,0.3f,0.3f,1.0f);
     glm::vec4 colorBackgroundDark  = glm::vec4(0.0f,0.0f,0.0f,1.0f); // ya no se usa como clear, el fondo es la textura
     glm::vec4 colorRed             = glm::vec4(0.86f,0.09f,0.07f,1.0f);
     glm::vec4 colorBlack           = glm::vec4(0.06f,0.17f,0.16f,1.0f);
@@ -210,15 +210,6 @@ int main(){
                 glUniform4fv(uColor,1,glm::value_ptr(colorAudience));
                 glBindVertexArray(triangleVAO); glDrawArrays(GL_TRIANGLES,0,3);
             }
-        }
-
-        // Ring (círculo gris) visible al inicio y final
-        if (t < 7.0 || t >= 15.0){
-            glm::mat4 model=glm::scale(glm::mat4(1),glm::vec3(200,200,1));
-            glm::mat4 mvp=proj*view*model;
-            glUniformMatrix4fv(uMVP,1,GL_FALSE,glm::value_ptr(mvp));
-            glUniform4fv(uColor,1,glm::value_ptr(colorRing));
-            glBindVertexArray(circleVAO); glDrawArrays(GL_TRIANGLE_FAN,0,64+2);
         }
 
         // --- Trayectorias de los luchadores (idéntico hasta 14 s) ---
