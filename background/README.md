@@ -1,1 +1,1 @@
-
+Este folder contiene un demo independiente que se usó para generar el fondo con arcos (el escenario y las gradas) que luego exportamos como fondo.png para la animación principal. Este demo no es requerido para correr la animación de duelo.cpp, pero sirve para reconstruir y ajustar la composición de curvas y arcos del fondo.
