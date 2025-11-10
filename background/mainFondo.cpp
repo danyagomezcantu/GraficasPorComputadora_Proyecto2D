@@ -18,7 +18,7 @@
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
 
-//Función para crear un círculo en nuestro programa
+//FunciÃ³n para crear un cÃ­rculo en nuestro programa
 void createCircleVertices(std::vector<float>& vertices, float radius, int segments) {
     for (int i = 0; i <= segments; ++i) {
         float angle = 2.0f * glm::pi<float>() * float(i) / float(segments);
@@ -28,43 +28,43 @@ void createCircleVertices(std::vector<float>& vertices, float radius, int segmen
 
         vertices.push_back(x);
         vertices.push_back(y);
-        vertices.push_back(0.0f); // coordenada z para el círculo en el plano xy
+        vertices.push_back(0.0f); // coordenada z para el cÃ­rculo en el plano xy
     }
 }
 
 
 void createThickQuarterCircleVertices(std::vector<float>& vertices, float innerRadius, float outerRadius, int segments, float angulo) {
     float startAngle = 0.0f;
-    float endAngle = glm::radians(angulo); // Un cuarto de círculo (90 grados)
+    float endAngle = glm::radians(angulo); // Un cuarto de cÃ­rculo (90 grados)
 
     for (int i = 0; i <= segments; ++i) {
         float angle = startAngle + i * (endAngle - startAngle) / float(segments);
 
-        // Vértices del borde interior
+        // VÃ©rtices del borde interior
         float innerX = innerRadius * cos(angle);
         float innerY = innerRadius * sin(angle);
         float texInnerX = (innerX + 1.0f) / 2.0f;  // Coordenada de textura x
         float texInnerY = (innerY + 1.0f) / 2.0f;  // Coordenada de textura y
 
-        // Vértices del borde exterior
+        // VÃ©rtices del borde exterior
         float outerX = outerRadius * cos(angle);
         float outerY = outerRadius * sin(angle);
         float texOuterX = (outerX + 1.0f) / 2.0f;  // Coordenada de textura x
         float texOuterY = (outerY + 1.0f) / 2.0f;  // Coordenada de textura y
 
-        // Agregar vértices (borde interior)
+        // Agregar vÃ©rtices (borde interior)
         vertices.push_back(innerX);
         vertices.push_back(innerY);
         vertices.push_back(0.0f); // Coordenada z
-        // Agregar coordenadas de textura para el vértice interior
+        // Agregar coordenadas de textura para el vÃ©rtice interior
         vertices.push_back(texInnerX);
         vertices.push_back(texInnerY);
 
-        // Agregar vértices (borde exterior)
+        // Agregar vÃ©rtices (borde exterior)
         vertices.push_back(outerX);
         vertices.push_back(outerY);
         vertices.push_back(0.0f); // Coordenada z
-        // Agregar coordenadas de textura para el vértice exterior
+        // Agregar coordenadas de textura para el vÃ©rtice exterior
         vertices.push_back(texOuterX);
         vertices.push_back(texOuterY);
     }
@@ -173,7 +173,7 @@ int main()
          0.0f,   0.16f, 0.0f,//top
     };
 
-    //Rectángulo
+    //RectÃ¡ngulo
     float verticesRectangulo15[] = {
         // positions          // texture coords
          0.1f,  0.0375f, 0.0f,   1.0f, 1.0f, // top right
@@ -182,7 +182,7 @@ int main()
         -0.1f,  0.0375f, 0.0f,   0.0f, 1.0f  // top left 
     };
 
-    //Rectángulo
+    //RectÃ¡ngulo
     float verticesRectangulo16[] = {
         // positions          // texture coords
          0.15f,  0.125f, 0.0f,   1.0f, 1.0f, // top right
@@ -191,7 +191,7 @@ int main()
         -0.15f,  0.125f, 0.0f,   0.0f, 1.0f  // top left 
     };
 
-    //Rectángulo
+    //RectÃ¡ngulo
     float verticesRectangulo17[] = {
         // positions          // texture coords
          0.1f,  0.075f, 0.0f,   1.0f, 1.0f, // top right
@@ -200,7 +200,7 @@ int main()
         -0.1f,  0.075f, 0.0f,   0.0f, 1.0f  // top left 
     };
 
-    //Rectángulo
+    //RectÃ¡ngulo
     float verticesRectangulo18[] = {
         // positions          // texture coords
          0.075f,  0.025f, 0.0f,   1.0f, 1.0f, // top right
@@ -241,66 +241,66 @@ int main()
     glBindVertexArray(VAO[1]);  // Bind del VAO para la circunferencia
     glBindBuffer(GL_ARRAY_BUFFER, VBO[1]);
     glBufferData(GL_ARRAY_BUFFER, arco1.size() * sizeof(float), arco1.data(), GL_STATIC_DRAW);
-    // Posición del atributo (posición 3)
+    // PosiciÃ³n del atributo (posiciÃ³n 3)
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);  // Primeros 3 floats son las posiciones
     glEnableVertexAttribArray(0);
-    // Posición del atributo (coordenada de textura, posición 1)
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));  // Los últimos 2 floats son las coordenadas de textura
+    // PosiciÃ³n del atributo (coordenada de textura, posiciÃ³n 1)
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));  // Los Ãºltimos 2 floats son las coordenadas de textura
     glEnableVertexAttribArray(1);
 
     //Agregamos la semi-cirunferencia 2------------------------------------------------------------------------------------------
     glBindVertexArray(VAO[2]);  // Bind del VAO para la circunferencia
     glBindBuffer(GL_ARRAY_BUFFER, VBO[2]);
     glBufferData(GL_ARRAY_BUFFER, arco2.size() * sizeof(float), arco2.data(), GL_STATIC_DRAW);
-    // Posición del atributo (posición 3)
+    // PosiciÃ³n del atributo (posiciÃ³n 3)
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);  // Primeros 3 floats son las posiciones
     glEnableVertexAttribArray(0);
-    // Posición del atributo (coordenada de textura, posición 1)
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));  // Los últimos 2 floats son las coordenadas de textura
+    // PosiciÃ³n del atributo (coordenada de textura, posiciÃ³n 1)
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));  // Los Ãºltimos 2 floats son las coordenadas de textura
     glEnableVertexAttribArray(1);
 
     //Agregamos la semi-cirunferencia 3------------------------------------------------------------------------------------------
     glBindVertexArray(VAO[3]);  // Bind del VAO para la circunferencia
     glBindBuffer(GL_ARRAY_BUFFER, VBO[3]);
     glBufferData(GL_ARRAY_BUFFER, arco3.size() * sizeof(float), arco3.data(), GL_STATIC_DRAW);
-    // Posición del atributo (posición 3)
+    // PosiciÃ³n del atributo (posiciÃ³n 3)
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);  // Primeros 3 floats son las posiciones
     glEnableVertexAttribArray(0);
-    // Posición del atributo (coordenada de textura, posición 1)
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));  // Los últimos 2 floats son las coordenadas de textura
+    // PosiciÃ³n del atributo (coordenada de textura, posiciÃ³n 1)
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));  // Los Ãºltimos 2 floats son las coordenadas de textura
     glEnableVertexAttribArray(1);
 
     //Agregamos la semi-cirunferencia 4------------------------------------------------------------------------------------------
     glBindVertexArray(VAO[4]);  // Bind del VAO para la circunferencia
     glBindBuffer(GL_ARRAY_BUFFER, VBO[4]);
     glBufferData(GL_ARRAY_BUFFER, arco4.size() * sizeof(float), arco4.data(), GL_STATIC_DRAW);
-    // Posición del atributo (posición 3)
+    // PosiciÃ³n del atributo (posiciÃ³n 3)
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);  // Primeros 3 floats son las posiciones
     glEnableVertexAttribArray(0);
-    // Posición del atributo (coordenada de textura, posición 1)
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));  // Los últimos 2 floats son las coordenadas de textura
+    // PosiciÃ³n del atributo (coordenada de textura, posiciÃ³n 1)
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));  // Los Ãºltimos 2 floats son las coordenadas de textura
     glEnableVertexAttribArray(1);
 
     //Agregamos la semi-cirunferencia 5------------------------------------------------------------------------------------------
     glBindVertexArray(VAO[5]);  // Bind del VAO para la circunferencia
     glBindBuffer(GL_ARRAY_BUFFER, VBO[5]);
     glBufferData(GL_ARRAY_BUFFER, arco5.size() * sizeof(float), arco5.data(), GL_STATIC_DRAW);
-    // Posición del atributo (posición 3)
+    // PosiciÃ³n del atributo (posiciÃ³n 3)
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);  // Primeros 3 floats son las posiciones
     glEnableVertexAttribArray(0);
-    // Posición del atributo (coordenada de textura, posición 1)
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));  // Los últimos 2 floats son las coordenadas de textura
+    // PosiciÃ³n del atributo (coordenada de textura, posiciÃ³n 1)
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));  // Los Ãºltimos 2 floats son las coordenadas de textura
     glEnableVertexAttribArray(1);
 
     //Agregamos la semi-cirunferencia 6------------------------------------------------------------------------------------------
     glBindVertexArray(VAO[6]);  // Bind del VAO para la circunferencia
     glBindBuffer(GL_ARRAY_BUFFER, VBO[6]);
     glBufferData(GL_ARRAY_BUFFER, arco6.size() * sizeof(float), arco6.data(), GL_STATIC_DRAW);
-    // Posición del atributo (posición 3)
+    // PosiciÃ³n del atributo (posiciÃ³n 3)
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);  // Primeros 3 floats son las posiciones
     glEnableVertexAttribArray(0);
-    // Posición del atributo (coordenada de textura, posición 1)
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));  // Los últimos 2 floats son las coordenadas de textura
+    // PosiciÃ³n del atributo (coordenada de textura, posiciÃ³n 1)
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));  // Los Ãºltimos 2 floats son las coordenadas de textura
     glEnableVertexAttribArray(1);
 
     //Agregamos la semi-cirunferencia 7------------------------------------------------------------------------------------------
@@ -357,7 +357,7 @@ int main()
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
-    //Agregamos el triángulo rojo--------------------------------------------------------------------------------------
+    //Agregamos el triÃ¡ngulo rojo--------------------------------------------------------------------------------------
     glBindVertexArray(VAO[13]);
     glBindBuffer(GL_ARRAY_BUFFER, VBO[13]);
     glBufferData(GL_ARRAY_BUFFER, sizeof(verticesTrianguloRojo), verticesTrianguloRojo, GL_STATIC_DRAW);
@@ -367,7 +367,7 @@ int main()
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
     
-    //Agregamos el triángulo naranja--------------------------------------------------------------------------------------
+    //Agregamos el triÃ¡ngulo naranja--------------------------------------------------------------------------------------
     glBindVertexArray(VAO[14]);
     glBindBuffer(GL_ARRAY_BUFFER, VBO[14]);
     glBufferData(GL_ARRAY_BUFFER, sizeof(verticesTrianguloNaranja), verticesTrianguloNaranja, GL_STATIC_DRAW);
@@ -444,7 +444,7 @@ int main()
     // load image, create texture and generate mipmaps
     int width, height, nrChannels;
     stbi_set_flip_vertically_on_load(true);
-    unsigned char* data = stbi_load("C:/OCruz/Computer Science - ITAM/Gráficas 2/Tarea 2 - Imagen/lis.jpg", &width, &height, &nrChannels, 0);
+    unsigned char* data = stbi_load("C:/OCruz/Computer Science - ITAM/GrÃ¡ficas 2/Tarea 2 - Imagen/lis.jpg", &width, &height, &nrChannels, 0);
     if (data)
     {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
@@ -476,20 +476,20 @@ int main()
         glBindTexture(GL_TEXTURE_2D, texture);
 
 
-        // Primera figura - Rectángulo naranja---------------------------------------------------------------------------------
+        // Primera figura - RectÃ¡ngulo naranja---------------------------------------------------------------------------------
         glm::mat4 transform = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
-        // Aplica la transformación
+        // Aplica la transformaciÃ³n
         // render container
         ourShader.use();
         unsigned int transformLoc = glGetUniformLocation(ourShader.ID, "transform");
         transform = glm::translate(transform, glm::vec3(-0.9125, 0.8875f, 0.0f));
-        float rotationAngle = glm::radians(-55.0f); // esto hará que rote continuamente sobre su propio eje
+        float rotationAngle = glm::radians(-55.0f); // esto harÃ¡ que rote continuamente sobre su propio eje
         transform = glm::rotate(transform, rotationAngle, glm::vec3(0.0f, 0.0f, 1.0f));
         glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transform));
         // Desactivar la textura
         unsigned int useTextureLoc = glGetUniformLocation(ourShader.ID, "useTexture");
         glUniform1i(useTextureLoc, GL_FALSE); // Desactivar textura
-        // Rectángulo naranja
+        // RectÃ¡ngulo naranja
         glUniform4f(colorLocation, 0.53f, 0.259f, 0.204f, 1.0f);
         glBindVertexArray(VAO[0]);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
@@ -498,10 +498,10 @@ int main()
         //2da figura (Arco 1 - verde)--------------------------------------------------------------------------------------------------
         //Arriba
         transform = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
-        //Movemos la figura a la posición correcta, una vez que ya la rotamos
+        //Movemos la figura a la posiciÃ³n correcta, una vez que ya la rotamos
         transform = glm::translate(transform, glm::vec3(0.0f, -0.15f, 0.0f));
-        //Rota el arco para que quede en su posición, alrededor del "ring"
-        rotationAngle = glm::radians(81.87f); // esto hará que rote continuamente sobre su propio eje
+        //Rota el arco para que quede en su posiciÃ³n, alrededor del "ring"
+        rotationAngle = glm::radians(81.87f); // esto harÃ¡ que rote continuamente sobre su propio eje
         transform = glm::rotate(transform, rotationAngle, glm::vec3(0.0f, -0.15f, 1.0f));
         transformLoc = glGetUniformLocation(ourShader.ID, "transform");
         glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transform)); // this time take the matrix value array's first element as its memory pointer value
@@ -632,9 +632,9 @@ int main()
         glDrawArrays(GL_TRIANGLE_STRIP, 0, (100 + 1) * 2);
 
 
-        // 14va figura (Triángulo rojo)---------------------------------------------------------------------------------
+        // 14va figura (TriÃ¡ngulo rojo)---------------------------------------------------------------------------------
         transform = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
-        // Aplica la transformación
+        // Aplica la transformaciÃ³n
         // render container
         ourShader.use();
         transformLoc = glGetUniformLocation(ourShader.ID, "transform");
@@ -645,15 +645,15 @@ int main()
         // Desactivar la textura
         useTextureLoc = glGetUniformLocation(ourShader.ID, "useTexture");
         glUniform1i(useTextureLoc, GL_FALSE); // Desactivar textura
-        //Triángulo naranja
+        //TriÃ¡ngulo naranja
         glUniform4f(colorLocation, 0.650f, 0.133f, 0.106f, 1.0f);
         glBindVertexArray(VAO[13]);
         glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
 
-        // 15va figura (Triángulo naranja)---------------------------------------------------------------------------------
+        // 15va figura (TriÃ¡ngulo naranja)---------------------------------------------------------------------------------
         transform = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
-        // Aplica la transformación
+        // Aplica la transformaciÃ³n
         // render container
         ourShader.use();
         transformLoc = glGetUniformLocation(ourShader.ID, "transform");
@@ -662,75 +662,75 @@ int main()
         // Desactivar la textura
         useTextureLoc = glGetUniformLocation(ourShader.ID, "useTexture");
         glUniform1i(useTextureLoc, GL_FALSE); // Desactivar textura
-        //Triángulo naranja
+        //TriÃ¡ngulo naranja
         glUniform4f(colorLocation, 0.53f, 0.259f, 0.204f, 1.0f);
         glBindVertexArray(VAO[14]);
         glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
 
-        // 16va figura - Rectángulo 15 (verde)---------------------------------------------------------------------------------
+        // 16va figura - RectÃ¡ngulo 15 (verde)---------------------------------------------------------------------------------
         transform = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
         ourShader.use();
         transformLoc = glGetUniformLocation(ourShader.ID, "transform");
         transform = glm::translate(transform, glm::vec3(-0.875f, 0.6625f, 0.0f));
-        rotationAngle = glm::radians(-49.0f); // esto hará que rote continuamente sobre su propio eje
+        rotationAngle = glm::radians(-49.0f); // esto harÃ¡ que rote continuamente sobre su propio eje
         transform = glm::rotate(transform, rotationAngle, glm::vec3(0.0f, 0.0f, 1.0f));
         glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transform));
         // Desactivar la textura
         useTextureLoc = glGetUniformLocation(ourShader.ID, "useTexture");
         glUniform1i(useTextureLoc, GL_FALSE); // Desactivar textura
-        // Rectángulo naranja
+        // RectÃ¡ngulo naranja
         glUniform4f(colorLocation, 0.106f, 0.208f, 0.18f, 1.0f);
         glBindVertexArray(VAO[15]);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
 
-        // 17va figura - Rectángulo 16 (verde)---------------------------------------------------------------------------------
+        // 17va figura - RectÃ¡ngulo 16 (verde)---------------------------------------------------------------------------------
         transform = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
         ourShader.use();
         transformLoc = glGetUniformLocation(ourShader.ID, "transform");
         transform = glm::translate(transform, glm::vec3(-0.725f, 0.925f, 0.0f));
-        rotationAngle = glm::radians(-56.0f); // esto hará que rote continuamente sobre su propio eje
+        rotationAngle = glm::radians(-56.0f); // esto harÃ¡ que rote continuamente sobre su propio eje
         transform = glm::rotate(transform, rotationAngle, glm::vec3(0.0f, 0.0f, 1.0f));
         glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transform));
         // Desactivar la textura
         useTextureLoc = glGetUniformLocation(ourShader.ID, "useTexture");
         glUniform1i(useTextureLoc, GL_FALSE); // Desactivar textura
-        // Rectángulo naranja
+        // RectÃ¡ngulo naranja
         glUniform4f(colorLocation, 0.106f, 0.208f, 0.18f, 1.0f);
         glBindVertexArray(VAO[16]);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
 
-        // 18va figura - Rectángulo 17 (verde)---------------------------------------------------------------------------------
+        // 18va figura - RectÃ¡ngulo 17 (verde)---------------------------------------------------------------------------------
         transform = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
         ourShader.use();
         transformLoc = glGetUniformLocation(ourShader.ID, "transform");
         transform = glm::translate(transform, glm::vec3(-0.625f, 0.975f, 0.0f));
-        rotationAngle = glm::radians(-56.0f); // esto hará que rote continuamente sobre su propio eje
+        rotationAngle = glm::radians(-56.0f); // esto harÃ¡ que rote continuamente sobre su propio eje
         transform = glm::rotate(transform, rotationAngle, glm::vec3(0.0f, 0.0f, 1.0f));
         glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transform));
         // Desactivar la textura
         useTextureLoc = glGetUniformLocation(ourShader.ID, "useTexture");
         glUniform1i(useTextureLoc, GL_FALSE); // Desactivar textura
-        // Rectángulo naranja
+        // RectÃ¡ngulo naranja
         glUniform4f(colorLocation, 0.106f, 0.208f, 0.18f, 1.0f);
         glBindVertexArray(VAO[17]);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
 
-        // 19va figura - Rectángulo 18 (crema)---------------------------------------------------------------------------------
+        // 19va figura - RectÃ¡ngulo 18 (crema)---------------------------------------------------------------------------------
         transform = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
         ourShader.use();
         transformLoc = glGetUniformLocation(ourShader.ID, "transform");
         transform = glm::translate(transform, glm::vec3(-0.725f, 0.95f, 0.0f));
-        rotationAngle = glm::radians(-56.0f); // esto hará que rote continuamente sobre su propio eje
+        rotationAngle = glm::radians(-56.0f); // esto harÃ¡ que rote continuamente sobre su propio eje
         transform = glm::rotate(transform, rotationAngle, glm::vec3(0.0f, 0.0f, 1.0f));
         glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transform));
         // Desactivar la textura
         useTextureLoc = glGetUniformLocation(ourShader.ID, "useTexture");
         glUniform1i(useTextureLoc, GL_FALSE); // Desactivar textura
-        // Rectángulo naranja
+        // RectÃ¡ngulo naranja
         glUniform4f(colorLocation, 0.890196f, 0.874510f, 0.729412f, 1.0f);
         glBindVertexArray(VAO[18]);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
