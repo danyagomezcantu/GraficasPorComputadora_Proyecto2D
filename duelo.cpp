@@ -121,6 +121,7 @@ unsigned int loadTexture2D(const char* path, bool flip=true){
 int main(){
     if(!glfwInit()){ std::cerr<<"GLFW init fail\n"; return -1; }
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR,3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR,3);
     glfwWindowHint(GLFW_OPENGL_CORE_PROFILE,GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_RESIZABLE,GLFW_FALSE);
     GLFWwindow* win = glfwCreateWindow(WINDOW_WIDTH,WINDOW_HEIGHT,"Duelo Animacion 2D",nullptr,nullptr);
@@ -167,7 +168,7 @@ int main(){
     glm::vec4 colorRed        = glm::vec4(0.86f,0.09f,0.07f,1.0f);
     glm::vec4 colorSquareGrey = glm::vec4(0.18f,0.19f,0.20f,1.0f);
     glm::vec4 colorSwordBlack = glm::vec4(0.0f,0.0f,0.0f,1.0f);
-    glm::vec4 colorSwordGrey  = glm::vec4(0.78f,0.78f,0.78f,1.0f);
+    glm::vec4 colorSwordGrey  = glm::vec4(0.35f,0.35f,0.38f,1.0f); // << más oscuro para visibilidad
     glm::vec4 colorSpotlight  = glm::vec4(1.0f,1.0f,0.85f,0.55f);
 
     glm::vec4 colTriBlack   = glm::vec4(0.02f,0.02f,0.02f,1.0f);
@@ -373,13 +374,15 @@ int main(){
         // 1) NEGRA (detrás del círculo)
         if (swordsStatic)  drawSword(redPos   + swordOffsetRed,   60.f,  L_duel, W_duel, colorSwordBlack);
         if (swordsMove) {
-            float swingR = (t<10.0? 15.f*std::sin((float)t*2.0f) : 30.f*std::sin((float)t*6.0f));
+            // INVERSIÓN DE SWING: ahora oscila hacia adentro (cambia +sin a -sin)
+            float swingR = (t<10.0? -15.f*std::sin((float)t*2.0f) : -30.f*std::sin((float)t*6.0f));
             drawSword(redPos + swordOffsetRed, 60.f + swingR, L_duel, W_duel, colorSwordBlack);
         }
         // 2) GRIS (debe quedar detrás de AMBOS → se dibuja ANTES que círculo y cuadrado)
         if (swordsStatic)  drawSword(blackPos + swordOffsetBlack, 120.f, L_duel, W_duel, colorSwordGrey);
         if (swordsMove) {
-            float swingB = (t<10.0? -15.f*std::sin((float)t*2.2f): -30.f*std::sin((float)t*6.2f));
+            // INVERSIÓN DE SWING: ahora oscila hacia adentro (cambia -sin a +sin)
+            float swingB = (t<10.0? +15.f*std::sin((float)t*2.2f): +30.f*std::sin((float)t*6.2f));
             drawSword(blackPos + swordOffsetBlack, 120.f + swingB, L_duel, W_duel, colorSwordGrey);
         }
         // 3) CÍRCULO
@@ -393,8 +396,8 @@ int main(){
             float L = 100.f + (840.f - 100.f)*s;
             float W =   8.f + ( 54.f -   8.f)*s;
             // espadas primero (debajo de todo)
-            drawSword(glm::vec2( 40, 40), 45.f, L, W, colorSwordBlack);
-            drawSword(glm::vec2( 50, 60), 45.f, L, W, colorSwordGrey);
+            drawSword(glm::vec2( 30, 40), 45.f, L, W, colorSwordBlack);
+            drawSword(glm::vec2( 40, 70), 45.f, L, W, colorSwordGrey);
             // luego dueños
             drawVAO(circleVAO, mRed, colorRed);
             drawVAO(squareVAO, mBlk, colorSquareGrey);
