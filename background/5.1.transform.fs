@@ -11,13 +11,13 @@ void main()
 {
     if (useTexture)
     {
-        // Si la textura est· activa, mezclar con el color
+        // Si la textura est√° activa, mezclar con el color
         vec4 texColor = texture(texture1, TexCoord);
-        FragColor = mix(texColor, ourColor, ourColor.a); // Mezcla entre textura y color seg˙n la transparencia
+        FragColor = mix(texColor, ourColor, ourColor.a); // Mezcla entre textura y color seg√∫n la transparencia
     }
     else
     {
-        // Si la textura est· desactivada, solo usar el color con transparencia
+        // Si la textura est√° desactivada, solo usar el color con transparencia
         FragColor = ourColor;
     }
 }
