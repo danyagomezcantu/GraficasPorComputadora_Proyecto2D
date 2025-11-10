@@ -159,7 +159,7 @@ int main(){
     unsigned int equiTriVAO= createEquilateralVAO();
     unsigned int rectCVAO  = createCenteredRectVAO();
     unsigned int fsqVAO    = createTexturedQuadVAO();
-    unsigned int bgTex     = loadTexture2D("fondo.png");
+    unsigned int bgTex     = loadTexture2D("fondo.jpg");
 
     // --- Colores ---
     glm::vec4 colorRed        = glm::vec4(0.86f,0.09f,0.07f,1.0f);
