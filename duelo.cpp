@@ -99,36 +99,82 @@ unsigned int createTexturedQuadVAO(){
     glEnableVertexAttribArray(1);
     glBindVertexArray(0); return VAO;
 }
+
+// ===== Loader de texturas optimizado (sin mipmaps, RGBA, centrado en rendimiento)
 unsigned int loadTexture2D(const char* path, bool flip=true){
     if(flip) stbi_set_flip_vertically_on_load(true);
-    int w,h,nc; unsigned char* data = stbi_load(path,&w,&h,&nc,0);
+    int w,h,nc; unsigned char* data = stbi_load(path,&w,&h,&nc,4); // fuerza RGBA
     if(!data){ std::cerr<<"No pude cargar "<<path<<"\n"; return 0; }
-    GLenum fmt = (nc==4)?GL_RGBA:GL_RGB;
+    std::cerr << "[fondo] " << path << " " << w << "x" << h << " RGBA\n";
+
+    int maxTex=0; glGetIntegerv(GL_MAX_TEXTURE_SIZE,&maxTex);
+    if(w>maxTex || h>maxTex){ std::cerr<<"[ERROR] Excede GL_MAX_TEXTURE_SIZE="<<maxTex<<"\n"; stbi_image_free(data); return 0; }
+
     unsigned int tex; glGenTextures(1,&tex);
     glBindTexture(GL_TEXTURE_2D,tex);
-    glTexImage2D(GL_TEXTURE_2D,0,fmt,w,h,0,fmt,GL_UNSIGNED_BYTE,data);
-    glGenerateMipmap(GL_TEXTURE_2D);
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
+    glPixelStorei(GL_UNPACK_ALIGNMENT,1);
+    glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,w,h,0,GL_RGBA,GL_UNSIGNED_BYTE,data);
+
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR); // sin mipmap (evita “lag”)
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
-    stbi_image_free(data); return tex;
+
+    stbi_image_free(data);
+    return tex;
 }
 
 //---------------------- Main ------------------------
 int main(){
+    // ---- GLFW INIT ----
+    glfwSetErrorCallback([](int code, const char* desc){
+        std::cerr << "[GLFW] Error " << code << ": " << desc << "\n";
+    });
+
     if(!glfwInit()){ std::cerr<<"GLFW init fail\n"; return -1; }
+
+    // Hints compatibles + control de visibilidad/foco
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR,3);
-    glfwWindowHint(GLFW_OPENGL_CORE_PROFILE,GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR,3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE,GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_RESIZABLE,GLFW_FALSE);
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);   // crea oculta
+    glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);   // siempre arriba (temporal)
+
     GLFWwindow* win = glfwCreateWindow(WINDOW_WIDTH,WINDOW_HEIGHT,"Gráficas por Computadora",nullptr,nullptr);
-    if(!win){ glfwTerminate(); return -1; }
-    glfwMakeContextCurrent(win); glfwSetFramebufferSizeCallback(win,framebuffer_size_callback);
-    if(!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)){ std::cerr<<"GLAD fail\n"; return -1; }
+    if(!win){
+        std::cerr << "Window creation failed\n";
+        glfwTerminate();
+        return -1;
+    }
+
+    glfwMakeContextCurrent(win);
+    glfwSetFramebufferSizeCallback(win,framebuffer_size_callback);
+
+    // ---- GLAD ----
+    if(!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)){
+        std::cerr<<"GLAD fail\n"; 
+        return -1;
+    }
+
+    // Centrar ventana (sin workarea) y traer al frente
+    const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+    if (mode){
+        int wx, wy; glfwGetWindowSize(win, &wx, &wy);
+        int posX = (mode->width  - wx)/2;
+        int posY = (mode->height - wy)/2;
+        if (posX < 0) posX = 0;
+        if (posY < 0) posY = 0;
+        glfwSetWindowPos(win, posX, posY);
+    }
+    glfwShowWindow(win);
+    glfwFocusWindow(win);
+    glfwRequestWindowAttention(win);  // por si otra app tiene el foco
+
     glViewport(0,0,WINDOW_WIDTH,WINDOW_HEIGHT);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
-    glDisable(GL_DEPTH_TEST); // <<< usamos orden de pintado, no Z
+    glDisable(GL_DEPTH_TEST); // usamos orden de pintado, no Z
 
     // --- Shaders ---
     const char* vColor = R"(#version 330 core
@@ -159,7 +205,7 @@ int main(){
     unsigned int equiTriVAO= createEquilateralVAO();
     unsigned int rectCVAO  = createCenteredRectVAO();
     unsigned int fsqVAO    = createTexturedQuadVAO();
-    unsigned int bgTex     = loadTexture2D("fondo.jpg");
+    unsigned int bgTex     = loadTexture2D("fondo.png");
 
     // --- Colores ---
     glm::vec4 colorRed        = glm::vec4(0.86f,0.09f,0.07f,1.0f);
@@ -234,8 +280,11 @@ int main(){
     }
 
     double t0 = glfwGetTime(); 
+    int warmupFrames = 0; // mantener foco durante ~1s
 
     while(!glfwWindowShouldClose(win)){
+        if (warmupFrames < 60) { glfwFocusWindow(win); ++warmupFrames; }
+
         double t = glfwGetTime() - t0;
         glClearColor(0,0,0,1);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -374,7 +423,6 @@ int main(){
                                                                 blackPos.y + jump + shiftFinal.y, 0));
         mBlk = glm::scale(mBlk, glm::vec3(sizeFinal, sizeFinal, 1));
 
-
         // ===== ESPADAS =====
         glm::vec2 swordOffsetRed   = glm::vec2(+32.0f, -6.0f);
         glm::vec2 swordOffsetBlack = glm::vec2(-70.0f, +12.0f);
@@ -420,7 +468,8 @@ int main(){
             } else {
                 const float FADE_SHADOW = 0.3f;
                 float s = (float)((t - 15.0) / FADE_SHADOW);
-                if (s < 0.0f) s = 0.0f; if (s > 1.0f) s = 1.0f;
+                if (s < 0.0f) s = 0.0f;
+                if (s > 1.0f) s = 1.0f;
                 shadowAlpha = 0.5f * (1.0f - s);
             }
             if (shadowAlpha > 0.001f){
