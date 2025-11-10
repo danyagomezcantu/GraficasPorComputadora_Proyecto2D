@@ -121,10 +121,9 @@ unsigned int loadTexture2D(const char* path, bool flip=true){
 int main(){
     if(!glfwInit()){ std::cerr<<"GLFW init fail\n"; return -1; }
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR,3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR,3);
     glfwWindowHint(GLFW_OPENGL_CORE_PROFILE,GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_RESIZABLE,GLFW_FALSE);
-    GLFWwindow* win = glfwCreateWindow(WINDOW_WIDTH,WINDOW_HEIGHT,"Duelo Animacion 2D",nullptr,nullptr);
+    GLFWwindow* win = glfwCreateWindow(WINDOW_WIDTH,WINDOW_HEIGHT,"Gráficas por Computadora",nullptr,nullptr);
     if(!win){ glfwTerminate(); return -1; }
     glfwMakeContextCurrent(win); glfwSetFramebufferSizeCallback(win,framebuffer_size_callback);
     if(!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)){ std::cerr<<"GLAD fail\n"; return -1; }
@@ -168,7 +167,8 @@ int main(){
     glm::vec4 colorRed        = glm::vec4(0.86f,0.09f,0.07f,1.0f);
     glm::vec4 colorSquareGrey = glm::vec4(0.18f,0.19f,0.20f,1.0f);
     glm::vec4 colorSwordBlack = glm::vec4(0.0f,0.0f,0.0f,1.0f);
-    glm::vec4 colorSwordGrey  = glm::vec4(0.35f,0.35f,0.38f,1.0f); // << más oscuro para visibilidad
+    glm::vec4 colorSwordGreyDark  = glm::vec4(0.35f,0.35f,0.38f,1.0f);
+    glm::vec4 colorSwordGreyLight = glm::vec4(0.78f,0.78f,0.78f,1.0f); 
     glm::vec4 colorSpotlight  = glm::vec4(1.0f,1.0f,0.85f,0.55f);
 
     glm::vec4 colTriBlack   = glm::vec4(0.02f,0.02f,0.02f,1.0f);
@@ -214,6 +214,11 @@ int main(){
     const double T_SWORD_SHOW  = 0.2;                             // 5.4–5.6
     const double T_FIGHT_MOVE  = T_SWORDS_ON + T_SWORD_SHOW;      // 5.6
     const double T_COLLISION   = 13.0;
+    const double T_SPOT_OFF    = 14.2; // reflector activo hasta después del salto
+
+    // --- Tamaño cuadrado ---
+    const glm::vec2 FINAL_SQUARE_SHIFT = glm::vec2(-100.0f, -100.0f);
+    const float     FINAL_SQUARE_SCALE = 1.5f;             
 
     // --- Audio: motor y pista ---
     ma_engine audioEngine;
@@ -227,7 +232,7 @@ int main(){
     } else {
         ma_sound_set_looping(&music, MA_FALSE);   // sólo reproducir una vez
         ma_sound_set_volume(&music, 0.10f);       // 10% al arrancar
-        ma_sound_start(&music);                   // ¡Play!
+        ma_sound_start(&music);                   // Play
     }
 
     double t0 = glfwGetTime(); 
@@ -337,18 +342,21 @@ int main(){
             } else { redPos={0,0}; blackPos={0,0}; }
         }
 
-        // ===== Protagonistas x2 antes de colisión =====
-        float heroScale = (t < T_COLLISION ? 2.0f : 1.0f);
+        // ===== Protagonistas x2 hasta antes de la configuración final =====
+        float heroScale = (t < 15.0 ? 2.0f : 1.0f);
 
         // ===== CÍRCULO =====
         float redRX=30.f*heroScale, redRY=30.f*heroScale;
         if      (t>=13.0 && t<14.0){
+            // Durante el salto: pasa de círculo (≈60*heroScale) a óvalo (90,40)
             float s=(float)((t-13.0)/1.0);
             redRX = 60.f*heroScale + (90.f - 60.f*heroScale)*s;
             redRY = 60.f*heroScale + (40.f - 60.f*heroScale)*s;
         } else if (t>=14.0 && t<15.0){
-            redRX = 60.f; redRY = 60.f;
+            // Mantenerlo ovalado hasta que arranque la configuración final
+            redRX = 90.f; redRY = 40.f;
         } else if (t>=15.0 && t<17.0){
+            // Config final: vuelve a ser círculo y expande
             float s=(float)((t-15.0)/2.0);
             redRX = 60 + (240-60)*s; redRY = 60 + (240-60)*s;
         } else if (t>=17.0){ redRX=240; redRY=240; }
@@ -359,59 +367,76 @@ int main(){
         float jump=0.f;
         if(t>=13.0 && t<14.0){ float s=(float)((t-13.0)/1.0); jump = std::sin(3.1416f*s)*50.f; }
         float baseSize = 60.f*heroScale;
-        float sqSize = (t<17.0)? baseSize + (140.f-baseSize)*std::max(0.f,(float)(t-15.0))/2.0f : 140.f;
-        glm::mat4 mBlk = glm::translate(glm::mat4(1),glm::vec3(blackPos.x, blackPos.y + jump, 0));
-        mBlk = glm::scale(mBlk, glm::vec3(sqSize,sqSize,1));
+        float sqSize   = (t<17.0)? baseSize + (140.f-baseSize)*std::max(0.f,(float)(t-15.0))/2.0f : 140.f;
 
-        // ===== ESPADAS (offsets hacia el centro para que asomen) =====
+        // Ajustes finales (sólo para la fase final t >= 15.0)
+        glm::vec2 shiftFinal = (t>=15.0) ? FINAL_SQUARE_SHIFT : glm::vec2(0.0f);
+        float     sizeFinal  = (t>=15.0) ? sqSize * FINAL_SQUARE_SCALE : sqSize;
+
+        glm::mat4 mBlk = glm::translate(glm::mat4(1), glm::vec3(blackPos.x + shiftFinal.x,
+                                                                blackPos.y + jump + shiftFinal.y, 0));
+        mBlk = glm::scale(mBlk, glm::vec3(sizeFinal, sizeFinal, 1));
+
+
+        // ===== ESPADAS =====
         glm::vec2 swordOffsetRed   = glm::vec2(+32.0f, -6.0f);
-        glm::vec2 swordOffsetBlack = glm::vec2(-70.0f, +12.0f); // empuja la empuñadura hacia el cuadrado
+        glm::vec2 swordOffsetBlack = glm::vec2(-70.0f, +12.0f);
         float L_duel = 220.f, W_duel = 14.f;  
         bool swordsStatic = (t >= T_SWORDS_ON && t < T_SWORDS_ON + T_SWORD_SHOW);
         bool swordsMove   = (t >= T_FIGHT_MOVE && t < T_COLLISION);
 
         // ===== ORDEN FIJO (painter): espadas -> círculo -> cuadrado =====
-        // 1) NEGRA (detrás del círculo)
+        // 1) NEGRA
         if (swordsStatic)  drawSword(redPos   + swordOffsetRed,   60.f,  L_duel, W_duel, colorSwordBlack);
         if (swordsMove) {
-            // INVERSIÓN DE SWING: ahora oscila hacia adentro (cambia +sin a -sin)
             float swingR = (t<10.0? -15.f*std::sin((float)t*2.0f) : -30.f*std::sin((float)t*6.0f));
             drawSword(redPos + swordOffsetRed, 60.f + swingR, L_duel, W_duel, colorSwordBlack);
         }
-        // 2) GRIS (debe quedar detrás de AMBOS → se dibuja ANTES que círculo y cuadrado)
-        if (swordsStatic)  drawSword(blackPos + swordOffsetBlack, 120.f, L_duel, W_duel, colorSwordGrey);
+        // 2) GRIS (oscuro durante pelea)
+        if (swordsStatic)  drawSword(blackPos + swordOffsetBlack, 120.f, L_duel, W_duel, colorSwordGreyDark);
         if (swordsMove) {
-            // INVERSIÓN DE SWING: ahora oscila hacia adentro (cambia -sin a +sin)
             float swingB = (t<10.0? +15.f*std::sin((float)t*2.2f): +30.f*std::sin((float)t*6.2f));
-            drawSword(blackPos + swordOffsetBlack, 120.f + swingB, L_duel, W_duel, colorSwordGrey);
+            drawSword(blackPos + swordOffsetBlack, 120.f + swingB, L_duel, W_duel, colorSwordGreyDark);
         }
         // 3) CÍRCULO
         if (t < 15.0) drawVAO(circleVAO, mRed, colorRed);
         // 4) CUADRADO
         if (t < 15.0) drawVAO(squareVAO, mBlk, colorSquareGrey);
 
-        // ===== FINAL (t ≥ 15): espadas debajo de todo y luego círculo/cuadrado =====
+        // ===== FINAL (t ≥ 15) =====
         if (t>=15.0){
             float s = std::min(1.0, (t-15.0)/2.0);
             float L = 100.f + (840.f - 100.f)*s;
             float W =   8.f + ( 54.f -   8.f)*s;
             // espadas primero (debajo de todo)
-            drawSword(glm::vec2( 30, 40), 45.f, L, W, colorSwordBlack);
-            drawSword(glm::vec2( 40, 70), 45.f, L, W, colorSwordGrey);
+            drawSword(glm::vec2( 70, 0), 45.f, L, W, colorSwordBlack);
+            drawSword(glm::vec2( 50, 60), 45.f, L, W, colorSwordGreyLight);
             // luego dueños
             drawVAO(circleVAO, mRed, colorRed);
             drawVAO(squareVAO, mBlk, colorSquareGrey);
         }
 
-        // ===== SOMBRA — se apaga al colisionar =====
-        if (t < T_COLLISION){
-            float shadowAlpha = (t < T_FADE) ? (1.0f - (float)t/T_FADE * 0.5f) : 0.5f;
-            drawVAO(rectCVAO, glm::scale(glm::mat4(1), glm::vec3(900,900,1)),
-                    glm::vec4(0,0,0,shadowAlpha), 6);
+        // ===== SOMBRA =====
+        {
+            float shadowAlpha = 0.0f;
+            if (t < 15.0) {
+                // Hasta el arranque de la configuración final, sombra presente (≈50%)
+                float base = (t < T_FADE) ? (1.0f - (float)t/T_FADE * 0.5f) : 0.5f;
+                shadowAlpha = base; // la mantenemos entre T_COLLISION y 15.0 también
+            } else {
+                const float FADE_SHADOW = 0.3f; // puedes ajustar a 0.2–0.5 s
+                float s = (float)((t - 15.0) / FADE_SHADOW);
+                if (s < 0.0f) s = 0.0f; if (s > 1.0f) s = 1.0f;
+                shadowAlpha = 0.5f * (1.0f - s); // 0.5 -> 0.0
+            }
+            if (shadowAlpha > 0.001f){
+                drawVAO(rectCVAO, glm::scale(glm::mat4(1), glm::vec3(900,900,1)),
+                        glm::vec4(0,0,0,shadowAlpha), 6);
+            }
         }
 
-        // ===== REFLECTOR — hasta antes de la colisión =====
-        if (t >= T_REFLECTOR && t < T_COLLISION){
+        // ===== REFLECTOR =====
+        if (t >= T_REFLECTOR && t < T_SPOT_OFF){
             drawVAO(circleVAO, glm::scale(glm::mat4(1),glm::vec3(250,250,1)), colorSpotlight);
         }
 
