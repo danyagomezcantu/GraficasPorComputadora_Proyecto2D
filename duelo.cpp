@@ -62,7 +62,7 @@ unsigned int createSquareVAO(){
     glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,3*sizeof(float),(void*)0);
     glEnableVertexAttribArray(0); glBindVertexArray(0); return VAO;
 }
-unsigned int createIsoTriangleVAO(){ // isósceles base=1, altura=1
+unsigned int createIsoTriangleVAO(){ 
     float v[]={  0.0f, 0.5f,0,  -0.5f,-0.5f,0,  0.5f,-0.5f,0 };
     unsigned int VAO,VBO; glGenVertexArrays(1,&VAO); glGenBuffers(1,&VBO);
     glBindVertexArray(VAO);
@@ -70,7 +70,7 @@ unsigned int createIsoTriangleVAO(){ // isósceles base=1, altura=1
     glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,3*sizeof(float),(void*)0);
     glEnableVertexAttribArray(0); glBindVertexArray(0); return VAO;
 }
-unsigned int createEquilateralVAO(){ // equilátero lado≈1
+unsigned int createEquilateralVAO(){ 
     float r = 0.57735f;
     float v[] = { 0.0f,  r, 0.0f,  -0.5f,-r, 0.0f,   0.5f,-r, 0.0f };
     unsigned int VAO,VBO; glGenVertexArrays(1,&VAO); glGenBuffers(1,&VBO);
@@ -79,7 +79,6 @@ unsigned int createEquilateralVAO(){ // equilátero lado≈1
     glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,3*sizeof(float),(void*)0);
     glEnableVertexAttribArray(0); glBindVertexArray(0); return VAO;
 }
-// rectángulo CENTRADO (para rotar sobre el centro)
 unsigned int createCenteredRectVAO(){
     float v[]={ -0.5f,-0.5f,0,  0.5f,-0.5f,0,  0.5f,0.5f,0,  -0.5f,-0.5f,0,  0.5f,0.5f,0,  -0.5f,0.5f,0 };
     unsigned int VAO,VBO; glGenVertexArrays(1,&VAO); glGenBuffers(1,&VBO);
@@ -88,7 +87,6 @@ unsigned int createCenteredRectVAO(){
     glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,3*sizeof(float),(void*)0);
     glEnableVertexAttribArray(0); glBindVertexArray(0); return VAO;
 }
-// Quad texturizado del fondo (-450..450)
 unsigned int createTexturedQuadVAO(){
     float x0=-450.f, y0=-450.f, x1=450.f, y1=450.f;
     float v[] = { x0,y0,0,0,  x1,y0,1,0,  x1,y1,1,1,  x0,y0,0,0,  x1,y1,1,1,  x0,y1,0,1 };
@@ -217,7 +215,7 @@ int main(){
     const double T_SPOT_OFF    = 14.2; // reflector activo hasta después del salto
 
     // --- Tamaño cuadrado ---
-    const glm::vec2 FINAL_SQUARE_SHIFT = glm::vec2(-100.0f, -100.0f);
+    const glm::vec2 FINAL_SQUARE_SHIFT = glm::vec2(-60.0f, -60.0f);
     const float     FINAL_SQUARE_SCALE = 1.5f;             
 
     // --- Audio: motor y pista ---
@@ -348,12 +346,11 @@ int main(){
         // ===== CÍRCULO =====
         float redRX=30.f*heroScale, redRY=30.f*heroScale;
         if      (t>=13.0 && t<14.0){
-            // Durante el salto: pasa de círculo (≈60*heroScale) a óvalo (90,40)
             float s=(float)((t-13.0)/1.0);
             redRX = 60.f*heroScale + (90.f - 60.f*heroScale)*s;
             redRY = 60.f*heroScale + (40.f - 60.f*heroScale)*s;
         } else if (t>=14.0 && t<15.0){
-            // Mantenerlo ovalado hasta que arranque la configuración final
+            // Se mantiene ovalado hasta que arranque la configuración final
             redRX = 90.f; redRY = 40.f;
         } else if (t>=15.0 && t<17.0){
             // Config final: vuelve a ser círculo y expande
@@ -408,10 +405,8 @@ int main(){
             float s = std::min(1.0, (t-15.0)/2.0);
             float L = 100.f + (840.f - 100.f)*s;
             float W =   8.f + ( 54.f -   8.f)*s;
-            // espadas primero (debajo de todo)
             drawSword(glm::vec2( 70, 0), 45.f, L, W, colorSwordBlack);
             drawSword(glm::vec2( 50, 60), 45.f, L, W, colorSwordGreyLight);
-            // luego dueños
             drawVAO(circleVAO, mRed, colorRed);
             drawVAO(squareVAO, mBlk, colorSquareGrey);
         }
@@ -420,14 +415,13 @@ int main(){
         {
             float shadowAlpha = 0.0f;
             if (t < 15.0) {
-                // Hasta el arranque de la configuración final, sombra presente (≈50%)
                 float base = (t < T_FADE) ? (1.0f - (float)t/T_FADE * 0.5f) : 0.5f;
-                shadowAlpha = base; // la mantenemos entre T_COLLISION y 15.0 también
+                shadowAlpha = base;
             } else {
-                const float FADE_SHADOW = 0.3f; // puedes ajustar a 0.2–0.5 s
+                const float FADE_SHADOW = 0.3f;
                 float s = (float)((t - 15.0) / FADE_SHADOW);
                 if (s < 0.0f) s = 0.0f; if (s > 1.0f) s = 1.0f;
-                shadowAlpha = 0.5f * (1.0f - s); // 0.5 -> 0.0
+                shadowAlpha = 0.5f * (1.0f - s);
             }
             if (shadowAlpha > 0.001f){
                 drawVAO(rectCVAO, glm::scale(glm::mat4(1), glm::vec3(900,900,1)),
